@@ -1,0 +1,65 @@
+@echo off
+
+set PCInfo=PC_A
+
+set /p INPUT="試験番号を入力してください >"
+set /p SELECT="試験の種別を選択してください(ログファイル名に使用) 0:正常、1:障害、2:復旧、その他:手動入力 >"
+IF "%SELECT%" == "0" (
+   ECHO 障害試験を実施します
+   set FileName=正常
+ ) ELSE IF "%SELECT%" == "1" (
+   ECHO 障害試験を実施します
+   set FileName=障害
+ ) ELSE IF "%SELECT%" == "2" (
+   ECHO 障害試験を実施します
+   set FileName=復旧
+ ) ELSE (
+   ECHO 種別を手動入力します。
+   set /p Filename="試験種別を手動で入力してください >"
+   ECHO 障害試験を実施します
+ )
+IF EXIST ping_trace_log\%INPUT%_%Filename%\ (
+
+  GOTO END
+)
+
+md ping_trace_log\%INPUT%_%Filename%
+  timeout /t 1 > nul
+
+set YYYYMMDD=%DATE:/=%
+
+echo 試験番号%INPUT%のPINGを開始します。
+
+set addresslist=1-x_PC_A_addresslist.txt
+
+REM token1はDestaddress
+REM token2はExpingの位置(左からどれくらいの場所にExpingの画面を配置するか)
+REM token3はExpingの位置(上からどれくらいの場所にExpingの画面を配置するか)
+
+
+FOR /F "tokens=1,2,3,4" %%A IN (%addresslist%) DO (
+  del  ExPing\ExPing.ini
+  echo [Placement] > ExPing\ExPing.ini
+
+  echo Left=%%B >> ExPing\ExPing.ini
+  echo Top=%%C >> ExPing\ExPing.ini
+  copy ExPing\ExPing.ini + ExPing\ExPing_Setting.txt ExPing\ExPing.ini
+  echo %%A > ExPing\ExPing.def
+  START ExPing\ExPing.exe -c -r -o ping_trace_log\%INPUT%_%Filename%\%PCInfo%-PC_B_%%A_%FileName%_ping_%YYYYMMDD%.csv
+  timeout /t 1 > nul
+
+)
+
+pause
+timeout /t 2 > nul
+
+taskkill /f /im exping.exe
+
+ExPing_断時間まとめ.vbe %INPUT%_%Filename% %addresslist% %PCInfo%
+
+timeout /t 2 > nul
+:END
+  ECHO 同じ名前のフォルダが存在します。 
+  ECHO 過去ログを移動して下さい。
+  ECHO 試験を中断します。
+
